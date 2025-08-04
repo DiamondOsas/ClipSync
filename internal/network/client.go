@@ -41,15 +41,42 @@ func (c *Client) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 
+	// Enable TCP keep-alive
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetKeepAlivePeriod(30 * time.Second)
+	}
+
 	c.conn = conn
 	c.ctx, c.cancel = context.WithCancel(ctx)
 
-	// Start send/receive goroutines
-	c.wg.Add(2)
+	// Start send/receive/heartbeat goroutines
+	c.wg.Add(3)
 	go c.sendLoop()
 	go c.recvLoop()
+	go c.heartbeatLoop()
 
 	return nil
+}
+
+// Heartbeat loop sends periodic pings to detect dead connections
+func (c *Client) heartbeatLoop() {
+	defer c.wg.Done()
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			ping := &protocol.Message{
+				Type:      "ping",
+				DeviceID:  c.deviceID,
+				Timestamp: time.Now(),
+			}
+			_ = c.SendMessage(ping)
+		case <-c.ctx.Done():
+			return
+		}
+	}
 }
 
 // Disconnect closes the connection
@@ -86,6 +113,7 @@ func (c *Client) sendLoop() {
 		select {
 		case msg := <-c.sendChan:
 			if err := c.writeMessage(msg); err != nil {
+				fmt.Printf("Send error: %v\n", err)
 				return
 			}
 		case <-c.ctx.Done():

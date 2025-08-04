@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/DiamondOsas/ClipSync/internal/discovery"
 	"github.com/DiamondOsas/ClipSync/internal/sync"
 )
 
@@ -18,6 +19,8 @@ func main() {
 		port     = flag.Int("port", 8080, "Port for communication")
 	)
 	flag.Parse()
+
+	discovery.EnsureFirewall()
 
 	if *deviceID == "" {
 		hostname, err := os.Hostname()

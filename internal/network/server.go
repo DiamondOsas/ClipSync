@@ -172,20 +172,4 @@ func (s *Server) readMessage(conn net.Conn) (*protocol.Message, error) {
 	return protocol.DeserializeMessage(data)
 }
 
-// writeMessage writes a message to the connection
-func (s *Server) writeMessage(conn net.Conn, msg *protocol.Message) error {
-	data, err := msg.Serialize()
-	if err != nil {
-		return err
-	}
-
-	// Write length prefix
-	length := uint32(len(data))
-	if err := binary.Write(conn, binary.BigEndian, length); err != nil {
-		return err
-	}
-
-	// Write message data
-	_, err = conn.Write(data)
-	return err
-}
+// Removed unused writeMessage method

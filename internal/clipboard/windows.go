@@ -14,39 +14,38 @@ import (
 )
 
 var (
-	user32                  = windows.NewLazySystemDLL("user32.dll")
-	kernel32                = windows.NewLazySystemDLL("kernel32.dll")
-	addClipboardFormatListenerProc = user32.NewProc("AddClipboardFormatListener")
-	removeClipboardFormatListenerProc = user32.NewProc("RemoveClipboardFormatListener")
-	openClipboardProc       = user32.NewProc("OpenClipboard")
-	closeClipboardProc      = user32.NewProc("CloseClipboard")
-	emptyClipboardProc      = user32.NewProc("EmptyClipboard")
-	getClipboardDataProc    = user32.NewProc("GetClipboardData")
-	setClipboardDataProc    = user32.NewProc("SetClipboardData")
+	user32   = windows.NewLazySystemDLL("user32.dll")
+	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	// Removed unused addClipboardFormatListenerProc and removeClipboardFormatListenerProc
+	openClipboardProc              = user32.NewProc("OpenClipboard")
+	closeClipboardProc             = user32.NewProc("CloseClipboard")
+	emptyClipboardProc             = user32.NewProc("EmptyClipboard")
+	getClipboardDataProc           = user32.NewProc("GetClipboardData")
+	setClipboardDataProc           = user32.NewProc("SetClipboardData")
 	isClipboardFormatAvailableProc = user32.NewProc("IsClipboardFormatAvailable")
-	globalAllocProc         = kernel32.NewProc("GlobalAlloc")
-	globalFreeProc          = kernel32.NewProc("GlobalFree")
-	globalLockProc          = kernel32.NewProc("GlobalLock")
-	globalUnlockProc        = kernel32.NewProc("GlobalUnlock")
+	globalAllocProc                = kernel32.NewProc("GlobalAlloc")
+	globalFreeProc                 = kernel32.NewProc("GlobalFree")
+	globalLockProc                 = kernel32.NewProc("GlobalLock")
+	globalUnlockProc               = kernel32.NewProc("GlobalUnlock")
 )
 
 const (
-	CF_TEXT         = 1
-	CF_UNICODETEXT  = 13
-	CF_HDROP        = 15
-	CF_BITMAP       = 2
-	CF_DIB          = 8
+	CF_TEXT            = 1
+	CF_UNICODETEXT     = 13
+	CF_HDROP           = 15
+	CF_BITMAP          = 2
+	CF_DIB             = 8
 	WM_CLIPBOARDUPDATE = 0x031D
-	GMEM_MOVEABLE   = 0x0002
-	HWND_MESSAGE    = ^uintptr(2) + 1 // -3
+	GMEM_MOVEABLE      = 0x0002
+	HWND_MESSAGE       = ^uintptr(2) + 1 // -3
 )
 
 // WindowsManager implements clipboard.Manager for Windows
 type WindowsManager struct {
-	callback  func(Content)
-	running   bool
-	ctx       context.Context
-	cancel    context.CancelFunc
+	callback func(Content)
+	running  bool
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // NewManager creates a new Windows clipboard manager
@@ -56,13 +55,9 @@ func NewManager() Manager {
 
 func (w *WindowsManager) Start(ctx context.Context) error {
 	w.ctx, w.cancel = context.WithCancel(ctx)
-	
-	// For now, we'll use a polling approach instead of window messages
-	// This is simpler to implement initially
 	w.running = true
-	
+
 	go w.monitorClipboard()
-	
 	return nil
 }
 
@@ -104,6 +99,19 @@ func (w *WindowsManager) Get() (Content, error) {
 }
 
 func (w *WindowsManager) Set(content Content) error {
+	// Retry loop for flaky Windows clipboard API
+	for i := 0; i < 3; i++ {
+		if err := w.setClipboardWithRetry(content); err == nil {
+			return nil
+		}
+		if i < 2 {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	return fmt.Errorf("failed to set clipboard after 3 attempts")
+}
+
+func (w *WindowsManager) setClipboardWithRetry(content Content) error {
 	if err := w.openClipboard(); err != nil {
 		return err
 	}
@@ -131,7 +139,7 @@ func (w *WindowsManager) monitorClipboard() {
 	defer ticker.Stop()
 
 	var lastContent string
-	
+
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -190,7 +198,9 @@ func (w *WindowsManager) getText() (Content, error) {
 	}
 	defer globalUnlockProc.Call(hMem)
 
-	text := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(ptr))[:])
+	// Limit the slice to the actual size to avoid unsafe.Pointer misuse
+	utf16Slice := (*[1 << 16]uint16)(unsafe.Pointer(ptr))[:]
+	text := syscall.UTF16ToString(utf16Slice)
 	return Content{
 		Type: TypeText,
 		Data: text,
@@ -215,7 +225,10 @@ func (w *WindowsManager) setText(text string) error {
 		return fmt.Errorf("GlobalLock failed")
 	}
 
-	copy((*[1 << 20]byte)(unsafe.Pointer(ptr))[:], (*[1 << 20]byte)(unsafe.Pointer(&utf16[0]))[:size])
+	// Limit the copy to the actual size to avoid unsafe.Pointer misuse
+	dst := (*[1 << 16]byte)(unsafe.Pointer(ptr))[:size]
+	src := (*[1 << 16]byte)(unsafe.Pointer(&utf16[0]))[:size]
+	copy(dst, src)
 	globalUnlockProc.Call(hMem)
 
 	r1, _, _ := setClipboardDataProc.Call(CF_UNICODETEXT, hMem)
@@ -237,7 +250,7 @@ func (w *WindowsManager) getImage() (Content, error) {
 	return Content{}, ErrUnsupportedFormat
 }
 
-func (w *WindowsManager) setFiles(files []string) error {
+func (w *WindowsManager) setFiles(_ []string) error {
 	// Simplified file handling - return error for now
 	return ErrUnsupportedFormat
 }

@@ -161,38 +161,56 @@ func (sm *SyncManager) clientManagerLoop() {
 
 // connectToDevice establishes connection to a discovered device
 func (sm *SyncManager) connectToDevice(device *discovery.Device) {
-	sm.clientLock.Lock()
-	defer sm.clientLock.Unlock()
+	go sm.connectToDeviceWithRetry(device)
+}
 
-	// Skip if already connected
-	if _, exists := sm.clients[device.ID]; exists {
+// connectToDeviceWithRetry tries to connect with persistent retry and backoff
+func (sm *SyncManager) connectToDeviceWithRetry(device *discovery.Device) {
+	maxBackoff := 60 * time.Second
+	backoff := 2 * time.Second
+	for {
+		sm.clientLock.Lock()
+		if _, exists := sm.clients[device.ID]; exists {
+			sm.clientLock.Unlock()
+			return // Already connected
+		}
+		sm.clientLock.Unlock()
+
+		client := network.NewClient(sm.deviceID, fmt.Sprintf("%s:%d", device.IP, device.Port))
+		ctx, cancel := context.WithTimeout(sm.ctx, 5*time.Second)
+		if err := client.Connect(ctx); err != nil {
+			cancel()
+			log.Printf("Failed to connect to %s: %v. Retrying in %v", device.ID, err, backoff)
+			time.Sleep(backoff)
+			if backoff < maxBackoff {
+				backoff *= 2
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+			}
+			continue
+		}
+		cancel()
+
+		// Send device hello
+		hello := &protocol.Message{
+			Type:      protocol.TypeDeviceHello,
+			DeviceID:  sm.deviceID,
+			Timestamp: time.Now(),
+		}
+		if err := client.SendMessage(hello); err != nil {
+			log.Printf("Failed to send hello to %s: %v", device.ID, err)
+			client.Disconnect()
+			time.Sleep(backoff)
+			continue
+		}
+
+		sm.clientLock.Lock()
+		sm.clients[device.ID] = client
+		sm.clientLock.Unlock()
+		go sm.handleClientMessages(device.ID, client)
 		return
 	}
-
-	client := network.NewClient(sm.deviceID, fmt.Sprintf("%s:%d", device.IP, device.Port))
-	ctx, cancel := context.WithTimeout(sm.ctx, 5*time.Second)
-	defer cancel()
-
-	if err := client.Connect(ctx); err != nil {
-		log.Printf("Failed to connect to %s: %v", device.ID, err)
-		return
-	}
-
-	// Send device hello
-	hello := &protocol.Message{
-		Type:      protocol.TypeDeviceHello,
-		DeviceID:  sm.deviceID,
-		Timestamp: time.Now(),
-	}
-	if err := client.SendMessage(hello); err != nil {
-		log.Printf("Failed to send hello to %s: %v", device.ID, err)
-		client.Disconnect()
-		return
-	}
-
-	// Start message handler
-	sm.clients[device.ID] = client
-	go sm.handleClientMessages(device.ID, client)
 }
 
 // handleClientMessages processes messages from a client
@@ -220,9 +238,16 @@ func (sm *SyncManager) handleMessage(deviceID string, msg *protocol.Message) {
 		}
 
 		// Update local clipboard
+		var contentStr string
+		if s, ok := msg.Data.Content.(string); ok {
+			contentStr = s
+		} else {
+			log.Printf("Clipboard update from %s has non-string content: %T (%v)", deviceID, msg.Data.Content, msg.Data.Content)
+			return
+		}
 		content := clipboard.Content{
 			Type: clipboard.ContentType(msg.Data.Type),
-			Data: msg.Data.Content.(string),
+			Data: contentStr,
 		}
 		if err := sm.clipboardMgr.Set(content); err != nil {
 			log.Printf("Failed to set clipboard: %v", err)

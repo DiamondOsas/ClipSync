@@ -77,6 +77,39 @@ func (d *Discovery) Browse(ctx context.Context) (<-chan *zeroconf.ServiceEntry, 
 	return entries, nil
 }
 
+// BrowsePassive uses passive discovery (query instead of broadcast)
+// This is more reliable on mobile devices and power-saving networks
+func (d *Discovery) BrowsePassive(ctx context.Context) (<-chan *zeroconf.ServiceEntry, error) {
+	resolver, err := zeroconf.NewResolver(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resolver: %w", err)
+	}
+
+	d.resolver = resolver
+
+	entries := make(chan *zeroconf.ServiceEntry)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				close(entries)
+				return
+			case <-ticker.C:
+				// Query instead of broadcast (passive mode)
+				err := resolver.Lookup(ctx, d.deviceID, ServiceName, Domain, entries)
+				if err != nil {
+					log.Printf("Lookup error: %v", err)
+				}
+			}
+		}
+	}()
+
+	return entries, nil
+}
+
 // GetLocalIP returns the local IP address for this device
 func GetLocalIP() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
