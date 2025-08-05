@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,7 +18,13 @@ const (
 )
 
 func main() {
-	// Get device ID from hostname
+	// Parse command line arguments
+	deviceID := flag.String("device", "", "Unique device identifier (default: hostname)")
+	port := flag.Int("port", defaultPort, "Port for communication")
+	debug := flag.Bool("debug", false, "Enable debug logging")
+	flag.Parse()
+
+	// Get device ID from hostname if not provided
 	discovery.EnsureFirewall()
 
 	hostname, err := os.Hostname()
@@ -25,8 +32,17 @@ func main() {
 		log.Fatalf("Failed to get hostname: %v", err)
 	}
 
+	if *deviceID == "" {
+		*deviceID = hostname
+	}
+
+	// Enable debug logging if requested
+	if *debug {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	}
+
 	// Create sync manager
-	syncManager := sync.NewSyncManager(hostname, defaultPort)
+	syncManager := sync.NewSyncManager(*deviceID, *port)
 
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -40,8 +56,8 @@ func main() {
 		log.Fatalf("Failed to start sync manager: %v", err)
 	}
 
-	fmt.Printf("ClipSync started on device: %s\n", hostname)
-	fmt.Printf("Listening on port: %d\n", defaultPort)
+	fmt.Printf("ClipSync started on device: %s\n", *deviceID)
+	fmt.Printf("Listening on port: %d\n", *port)
 	fmt.Println("Press Ctrl+C to stop...")
 
 	// Wait for shutdown signal

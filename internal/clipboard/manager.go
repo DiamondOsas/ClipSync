@@ -10,7 +10,7 @@ import (
 
 // Fallback manager for non-Windows systems
 type FallbackManager struct {
-	callback func(Content)
+	callback func(string)
 	running  bool
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -40,14 +40,14 @@ func (f *FallbackManager) Stop() error {
 	return nil
 }
 
-func (f *FallbackManager) Get() (Content, error) {
-	return Content{}, errors.New("clipboard access not implemented for this platform")
+func (f *FallbackManager) Get() (string, error) {
+	return "", errors.New("clipboard access not implemented for this platform")
 }
 
-func (f *FallbackManager) Set(content Content) error {
+func (f *FallbackManager) Set(text string) error {
 	return errors.New("clipboard access not implemented for this platform")
 }
 
-func (f *FallbackManager) OnChange(callback func(Content)) {
+func (f *FallbackManager) OnChange(callback func(string)) {
 	f.callback = callback
 }

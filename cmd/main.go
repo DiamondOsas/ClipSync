@@ -16,7 +16,7 @@ import (
 func main() {
 	var (
 		deviceID = flag.String("device", "", "Unique device identifier")
-		port     = flag.Int("port", 8080, "Port for communication")
+		port     = flag.Int("port", 9901, "Port for communication")
 	)
 	flag.Parse()
 

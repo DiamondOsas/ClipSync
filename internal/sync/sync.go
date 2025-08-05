@@ -16,6 +16,7 @@ import (
 // SyncManager coordinates clipboard synchronization between devices
 type SyncManager struct {
 	deviceID     string
+	port         int
 	clipboardMgr clipboard.Manager
 	discovery    *discovery.Discovery
 	server       *network.Server
@@ -30,6 +31,7 @@ type SyncManager struct {
 func NewSyncManager(deviceID string, port int) *SyncManager {
 	return &SyncManager{
 		deviceID:     deviceID,
+		port:         port,
 		clipboardMgr: clipboard.NewManager(),
 		discovery:    discovery.New(deviceID, port),
 		server:       network.NewServer(deviceID, port),
@@ -67,7 +69,11 @@ func (sm *SyncManager) Start(ctx context.Context) error {
 	sm.wg.Add(1)
 	go sm.clientManagerLoop()
 
-	log.Printf("ClipSync started for device %s", sm.deviceID)
+	// Start server message handler
+	sm.wg.Add(1)
+	go sm.serverMessageHandler()
+
+	log.Printf("ClipSync started for device %s on port %d", sm.deviceID, sm.port)
 	return nil
 }
 
@@ -94,26 +100,13 @@ func (sm *SyncManager) Stop() {
 }
 
 // handleClipboardChange is called when local clipboard changes
-func (sm *SyncManager) handleClipboardChange(content clipboard.Content) {
-	dataStr, ok := content.Data.(string)
-	if !ok {
-		log.Printf("Clipboard content is not text, skipping sync")
+func (sm *SyncManager) handleClipboardChange(text string) {
+	if text == "" {
 		return
 	}
-
-	msg := &protocol.Message{
-		Type:      protocol.TypeClipboardUpdate,
-		DeviceID:  sm.deviceID,
-		Timestamp: time.Now(),
-		Data: protocol.ClipboardData{
-			Type:    string(content.Type),
-			Content: dataStr,
-			Size:    len(dataStr),
-		},
-	}
-
-	// Broadcast to all connected clients
-	sm.server.Broadcast(msg)
+	
+	msg := protocol.NewClipboardUpdate(sm.deviceID, text)
+	sm.broadcast(msg)
 }
 
 // discoveryLoop handles device discovery
@@ -122,14 +115,14 @@ func (sm *SyncManager) discoveryLoop() {
 
 	entries, err := sm.discovery.Browse(sm.ctx)
 	if err != nil {
-		log.Printf("Failed to start discovery browsing: %v", err)
+		log.Printf("Discovery error: %v", err)
 		return
 	}
 
 	for {
 		select {
 		case entry := <-entries:
-			if entry == nil {
+			if entry == nil || sm.ctx.Err() != nil {
 				return
 			}
 			device := discovery.ParseServiceEntry(entry)
@@ -146,7 +139,7 @@ func (sm *SyncManager) discoveryLoop() {
 func (sm *SyncManager) clientManagerLoop() {
 	defer sm.wg.Done()
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -159,66 +152,63 @@ func (sm *SyncManager) clientManagerLoop() {
 	}
 }
 
-// connectToDevice establishes connection to a discovered device
-func (sm *SyncManager) connectToDevice(device *discovery.Device) {
-	go sm.connectToDeviceWithRetry(device)
+// serverMessageHandler handles messages from server clients
+func (sm *SyncManager) serverMessageHandler() {
+	defer sm.wg.Done()
+
+	for {
+		select {
+		case msg := <-sm.server.Receive():
+			if msg == nil || sm.ctx.Err() != nil {
+				return
+			}
+			sm.handleServerMessage(msg)
+		case <-sm.ctx.Done():
+			return
+		}
+	}
 }
 
-// connectToDeviceWithRetry tries to connect with persistent retry and backoff
-func (sm *SyncManager) connectToDeviceWithRetry(device *discovery.Device) {
-	maxBackoff := 60 * time.Second
-	backoff := 2 * time.Second
-	for {
-		sm.clientLock.Lock()
-		if _, exists := sm.clients[device.ID]; exists {
-			sm.clientLock.Unlock()
-			return // Already connected
-		}
-		sm.clientLock.Unlock()
-
-		client := network.NewClient(sm.deviceID, fmt.Sprintf("%s:%d", device.IP, device.Port))
-		ctx, cancel := context.WithTimeout(sm.ctx, 5*time.Second)
-		if err := client.Connect(ctx); err != nil {
-			cancel()
-			log.Printf("Failed to connect to %s: %v. Retrying in %v", device.ID, err, backoff)
-			time.Sleep(backoff)
-			if backoff < maxBackoff {
-				backoff *= 2
-				if backoff > maxBackoff {
-					backoff = maxBackoff
-				}
-			}
-			continue
-		}
-		cancel()
-
-		// Send device hello
-		hello := &protocol.Message{
-			Type:      protocol.TypeDeviceHello,
-			DeviceID:  sm.deviceID,
-			Timestamp: time.Now(),
-		}
-		if err := client.SendMessage(hello); err != nil {
-			log.Printf("Failed to send hello to %s: %v", device.ID, err)
-			client.Disconnect()
-			time.Sleep(backoff)
-			continue
-		}
-
-		sm.clientLock.Lock()
-		sm.clients[device.ID] = client
-		sm.clientLock.Unlock()
-		go sm.handleClientMessages(device.ID, client)
+// connectToDevice establishes connection to a discovered device
+func (sm *SyncManager) connectToDevice(device *discovery.Device) {
+	sm.clientLock.RLock()
+	if _, exists := sm.clients[device.ID]; exists {
+		sm.clientLock.RUnlock()
 		return
 	}
+	sm.clientLock.RUnlock()
+
+	client := network.NewClient(sm.deviceID, fmt.Sprintf("%s:%d", device.IP, device.Port))
+	ctx, cancel := context.WithTimeout(sm.ctx, 5*time.Second)
+	defer cancel()
+
+	if err := client.Connect(ctx); err != nil {
+		log.Printf("Failed to connect to %s: %v", device.ID, err)
+		return
+	}
+
+	// Send current clipboard
+	if text, err := sm.clipboardMgr.Get(); err == nil && text != "" {
+		client.SendMessage(protocol.NewClipboardUpdate(sm.deviceID, text))
+	}
+
+	sm.clientLock.Lock()
+	sm.clients[device.ID] = client
+	sm.clientLock.Unlock()
+
+	// Start message handler for this client
+	sm.wg.Add(1)
+	go sm.handleClientMessages(device.ID, client)
 }
 
 // handleClientMessages processes messages from a client
 func (sm *SyncManager) handleClientMessages(deviceID string, client *network.Client) {
+	defer sm.wg.Done()
+
 	for {
 		select {
 		case msg := <-client.Receive():
-			if msg == nil {
+			if msg == nil || sm.ctx.Err() != nil {
 				return
 			}
 			sm.handleMessage(deviceID, msg)
@@ -228,37 +218,43 @@ func (sm *SyncManager) handleClientMessages(deviceID string, client *network.Cli
 	}
 }
 
-// handleMessage processes incoming messages
-func (sm *SyncManager) handleMessage(deviceID string, msg *protocol.Message) {
-	switch msg.Type {
-	case protocol.TypeClipboardUpdate:
-		if msg.Data.Type == "" {
-			log.Printf("Invalid clipboard data from %s", deviceID)
-			return
-		}
-
-		// Update local clipboard
-		var contentStr string
-		if s, ok := msg.Data.Content.(string); ok {
-			contentStr = s
-		} else {
-			log.Printf("Clipboard update from %s has non-string content: %T (%v)", deviceID, msg.Data.Content, msg.Data.Content)
-			return
-		}
-		content := clipboard.Content{
-			Type: clipboard.ContentType(msg.Data.Type),
-			Data: contentStr,
-		}
-		if err := sm.clipboardMgr.Set(content); err != nil {
-			log.Printf("Failed to set clipboard: %v", err)
-		}
-
-	case protocol.TypeDeviceHello:
-		log.Printf("Received hello from %s", deviceID)
-
-	default:
-		log.Printf("Unknown message type: %s", msg.Type)
+// handleServerMessage processes messages from server clients
+func (sm *SyncManager) handleServerMessage(msg *protocol.Message) {
+	if msg.Type == protocol.TypeClipboardUpdate && msg.DeviceID != sm.deviceID {
+		sm.handleMessage(msg.DeviceID, msg)
 	}
+}
+
+// handleMessage processes incoming clipboard updates
+func (sm *SyncManager) handleMessage(deviceID string, msg *protocol.Message) {
+	if msg.Type != protocol.TypeClipboardUpdate {
+		return
+	}
+
+	// Prevent echo loops - skip if this is our own message
+	if msg.DeviceID == sm.deviceID {
+		return
+	}
+
+	// Update local clipboard
+	if err := sm.clipboardMgr.Set(msg.Content); err != nil {
+		log.Printf("Failed to set clipboard from %s: %v", deviceID, err)
+	} else {
+		log.Printf("Updated clipboard from %s: %s", deviceID, truncateText(msg.Content, 50))
+	}
+}
+
+// broadcast sends message to all connected clients
+func (sm *SyncManager) broadcast(msg *protocol.Message) {
+	sm.clientLock.RLock()
+	defer sm.clientLock.RUnlock()
+
+	for deviceID, client := range sm.clients {
+		if err := client.SendMessage(msg); err != nil {
+			log.Printf("Failed to send to %s: %v", deviceID, err)
+		}
+	}
+	sm.server.Broadcast(msg)
 }
 
 // cleanupClients removes disconnected clients
@@ -267,23 +263,18 @@ func (sm *SyncManager) cleanupClients() {
 	defer sm.clientLock.Unlock()
 
 	for deviceID, client := range sm.clients {
-		// Simple check - if the client is nil or connection is closed
-		// In a real implementation, you'd want more sophisticated health checks
-		if client == nil {
+		if !client.IsConnected() {
+			client.Disconnect()
 			delete(sm.clients, deviceID)
-			continue
+			log.Printf("Disconnected from %s", deviceID)
 		}
 	}
 }
 
-// GetConnectedDevices returns a list of connected device IDs
-func (sm *SyncManager) GetConnectedDevices() []string {
-	sm.clientLock.RLock()
-	defer sm.clientLock.RUnlock()
-
-	devices := make([]string, 0, len(sm.clients))
-	for id := range sm.clients {
-		devices = append(devices, id)
+// truncateText truncates text for logging
+func truncateText(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
 	}
-	return devices
+	return text[:maxLen-3] + "..."
 }

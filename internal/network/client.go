@@ -1,8 +1,9 @@
 package network
 
 import (
+	"bufio"
+	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -22,65 +23,64 @@ type Client struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
+	connected  bool
+	mu         sync.RWMutex
 }
 
-// NewClient creates a new network client
+// NewClient creates a new network client with default configuration
 func NewClient(deviceID, remoteAddr string) *Client {
 	return &Client{
 		deviceID:   deviceID,
 		remoteAddr: remoteAddr,
-		sendChan:   make(chan *protocol.Message, 100),
-		recvChan:   make(chan *protocol.Message, 100),
+		sendChan:   make(chan *protocol.Message, 10),
+		recvChan:   make(chan *protocol.Message, 10),
 	}
 }
 
 // Connect establishes connection to remote device
 func (c *Client) Connect(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.connected {
+		return fmt.Errorf("client already connected")
+	}
+
+	c.ctx, c.cancel = context.WithCancel(ctx)
+
 	conn, err := net.DialTimeout("tcp", c.remoteAddr, 5*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 
-	// Enable TCP keep-alive
-	if tcpConn, ok := conn.(*net.TCPConn); ok {
-		tcpConn.SetKeepAlive(true)
-		tcpConn.SetKeepAlivePeriod(30 * time.Second)
-	}
-
 	c.conn = conn
-	c.ctx, c.cancel = context.WithCancel(ctx)
+	c.connected = true
 
-	// Start send/receive/heartbeat goroutines
-	c.wg.Add(3)
+	// Start send/receive goroutines
+	c.wg.Add(2)
 	go c.sendLoop()
 	go c.recvLoop()
-	go c.heartbeatLoop()
 
 	return nil
 }
 
-// Heartbeat loop sends periodic pings to detect dead connections
-func (c *Client) heartbeatLoop() {
-	defer c.wg.Done()
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			ping := &protocol.Message{
-				Type:      "ping",
-				DeviceID:  c.deviceID,
-				Timestamp: time.Now(),
-			}
-			_ = c.SendMessage(ping)
-		case <-c.ctx.Done():
-			return
-		}
-	}
+// IsConnected returns whether the client is connected
+func (c *Client) IsConnected() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.connected
 }
 
 // Disconnect closes the connection
 func (c *Client) Disconnect() {
+	c.mu.Lock()
+	if !c.connected {
+		c.mu.Unlock()
+		return
+	}
+	c.connected = false
+	c.mu.Unlock()
+
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -108,12 +108,18 @@ func (c *Client) Receive() <-chan *protocol.Message {
 // sendLoop handles outgoing messages
 func (c *Client) sendLoop() {
 	defer c.wg.Done()
-
 	for {
 		select {
 		case msg := <-c.sendChan:
-			if err := c.writeMessage(msg); err != nil {
-				fmt.Printf("Send error: %v\n", err)
+			data, err := msg.Serialize()
+			if err != nil {
+				continue
+			}
+			data = append(data, '\n')
+			c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			_, err = c.conn.Write(data)
+			if err != nil {
+				c.Disconnect()
 				return
 			}
 		case <-c.ctx.Done():
@@ -125,14 +131,26 @@ func (c *Client) sendLoop() {
 // recvLoop handles incoming messages
 func (c *Client) recvLoop() {
 	defer c.wg.Done()
-
+	reader := bufio.NewReader(c.conn)
 	for {
-		msg, err := c.readMessage()
+		data, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
 				fmt.Printf("Read error: %v\n", err)
 			}
+			c.Disconnect()
 			return
+		}
+
+		data = bytes.TrimSpace(data)
+		if len(data) == 0 {
+			continue
+		}
+
+		msg, err := protocol.DeserializeMessage(data)
+		if err != nil {
+			fmt.Printf("Failed to deserialize message: %v\n", err)
+			continue
 		}
 
 		select {
@@ -141,39 +159,4 @@ func (c *Client) recvLoop() {
 			return
 		}
 	}
-}
-
-// writeMessage writes a message to the connection
-func (c *Client) writeMessage(msg *protocol.Message) error {
-	data, err := msg.Serialize()
-	if err != nil {
-		return err
-	}
-
-	// Write length prefix
-	length := uint32(len(data))
-	if err := binary.Write(c.conn, binary.BigEndian, length); err != nil {
-		return err
-	}
-
-	// Write message data
-	_, err = c.conn.Write(data)
-	return err
-}
-
-// readMessage reads a message from the connection
-func (c *Client) readMessage() (*protocol.Message, error) {
-	// Read length prefix
-	var length uint32
-	if err := binary.Read(c.conn, binary.BigEndian, &length); err != nil {
-		return nil, err
-	}
-
-	// Read message data
-	data := make([]byte, length)
-	if _, err := io.ReadFull(c.conn, data); err != nil {
-		return nil, err
-	}
-
-	return protocol.DeserializeMessage(data)
 }

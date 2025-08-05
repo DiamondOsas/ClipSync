@@ -1,12 +1,14 @@
 package network
 
 import (
+	"bufio"
+	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/DiamondOsas/ClipSync/internal/protocol"
 )
@@ -16,19 +18,29 @@ type Server struct {
 	listener   net.Listener
 	deviceID   string
 	port       int
-	clients    map[string]*Client
+	clients    map[string]*clientConnection
 	clientLock sync.RWMutex
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
+	receiveCh  chan *protocol.Message
+}
+
+type clientConnection struct {
+	conn     net.Conn
+	deviceID string
+	sendCh   chan *protocol.Message
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // NewServer creates a new network server
 func NewServer(deviceID string, port int) *Server {
 	return &Server{
-		deviceID: deviceID,
-		port:     port,
-		clients:  make(map[string]*Client),
+		deviceID:  deviceID,
+		port:      port,
+		clients:   make(map[string]*clientConnection),
+		receiveCh: make(chan *protocol.Message, 100),
 	}
 }
 
@@ -60,12 +72,16 @@ func (s *Server) Stop() {
 	// Disconnect all clients
 	s.clientLock.Lock()
 	for _, client := range s.clients {
-		client.Disconnect()
+		client.cancel()
+		if client.conn != nil {
+			client.conn.Close()
+		}
 	}
-	s.clients = make(map[string]*Client)
+	s.clients = make(map[string]*clientConnection)
 	s.clientLock.Unlock()
 
 	s.wg.Wait()
+	close(s.receiveCh)
 }
 
 // Broadcast sends a message to all connected clients
@@ -74,22 +90,17 @@ func (s *Server) Broadcast(msg *protocol.Message) {
 	defer s.clientLock.RUnlock()
 
 	for _, client := range s.clients {
-		if err := client.SendMessage(msg); err != nil {
-			fmt.Printf("Failed to send to client: %v\n", err)
+		select {
+		case client.sendCh <- msg:
+		default:
+			// Client is slow, skip
 		}
 	}
 }
 
-// GetClients returns a list of connected client IDs
-func (s *Server) GetClients() []string {
-	s.clientLock.RLock()
-	defer s.clientLock.RUnlock()
-
-	clients := make([]string, 0, len(s.clients))
-	for id := range s.clients {
-		clients = append(clients, id)
-	}
-	return clients
+// Receive returns the channel for incoming messages
+func (s *Server) Receive() <-chan *protocol.Message {
+	return s.receiveCh
 }
 
 // acceptLoop handles incoming connections
@@ -115,61 +126,91 @@ func (s *Server) handleConnection(conn net.Conn) {
 	defer s.wg.Done()
 	defer conn.Close()
 
-	// Read device hello message first
-	msg, err := s.readMessage(conn)
-	if err != nil {
-		fmt.Printf("Failed to read hello: %v\n", err)
-		return
+	clientID := conn.RemoteAddr().String()
+	ctx, cancel := context.WithCancel(s.ctx)
+	
+	client := &clientConnection{
+		conn:     conn,
+		deviceID: clientID,
+		sendCh:   make(chan *protocol.Message, 10),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
-
-	if msg.Type != protocol.TypeDeviceHello {
-		fmt.Printf("Expected device hello, got %s\n", msg.Type)
-		return
-	}
-
-	clientID := msg.DeviceID
-	client := NewClient(clientID, conn.RemoteAddr().String())
-	client.conn = conn
-	client.ctx, client.cancel = context.WithCancel(s.ctx)
 
 	// Add client to map
 	s.clientLock.Lock()
 	s.clients[clientID] = client
 	s.clientLock.Unlock()
 
-	fmt.Printf("Client connected: %s\n", clientID)
+	// Start send/receive goroutines
+	go s.clientSendLoop(client)
+	s.clientReceiveLoop(client)
 
-	// Start client handlers
-	client.wg.Add(2)
-	go client.sendLoop()
-	go client.recvLoop()
-
-	// Wait for client to disconnect
-	<-client.ctx.Done()
-
-	// Remove client from map
+	// Cleanup
 	s.clientLock.Lock()
 	delete(s.clients, clientID)
 	s.clientLock.Unlock()
-
-	fmt.Printf("Client disconnected: %s\n", clientID)
+	cancel()
+	close(client.sendCh)
 }
 
-// readMessage reads a message from the connection
-func (s *Server) readMessage(conn net.Conn) (*protocol.Message, error) {
-	// Read length prefix
-	var length uint32
-	if err := binary.Read(conn, binary.BigEndian, &length); err != nil {
-		return nil, err
+// clientSendLoop handles sending messages to a client
+func (s *Server) clientSendLoop(client *clientConnection) {
+	for {
+		select {
+		case msg := <-client.sendCh:
+			data, err := msg.Serialize()
+			if err != nil {
+				continue
+			}
+			data = append(data, '\n')
+			client.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			_, err = client.conn.Write(data)
+			if err != nil {
+				return
+			}
+		case <-client.ctx.Done():
+			return
+		}
 	}
-
-	// Read message data
-	data := make([]byte, length)
-	if _, err := io.ReadFull(conn, data); err != nil {
-		return nil, err
-	}
-
-	return protocol.DeserializeMessage(data)
 }
 
-// Removed unused writeMessage method
+// clientReceiveLoop handles receiving messages from a client
+func (s *Server) clientReceiveLoop(client *clientConnection) {
+	reader := bufio.NewReader(client.conn)
+	for {
+		select {
+		case <-client.ctx.Done():
+			return
+		default:
+			client.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			data, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err != io.EOF {
+					fmt.Printf("Read error from client %s: %v\n", client.deviceID, err)
+				}
+				return
+			}
+
+			data = bytes.TrimSpace(data)
+			if len(data) == 0 {
+				continue
+			}
+
+			msg, err := protocol.DeserializeMessage(data)
+			if err != nil {
+				fmt.Printf("Failed to deserialize message from %s: %v\n", client.deviceID, err)
+				continue
+			}
+
+			// Send to receive channel
+			select {
+			case s.receiveCh <- msg:
+			case <-client.ctx.Done():
+				return
+			default:
+				// Channel full, skip message
+			}
+		}
+	}
+}
