@@ -1,0 +1,9 @@
+Clarify if anything is unclear.
+
+Updates
+
+Please remove this window adn make suer the normal window deisgn still works and the function fo the app works
+I am a learner so please upadte @how it works so that i can learn and please expalin every function in the javascript and any technical code in detal
+
+
+
