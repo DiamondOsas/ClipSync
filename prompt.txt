@@ -1,9 +1,8 @@
 Clarify if anything is unclear.
+Always check (library) doc or webfetch or check libdoc folder if library doc is there especially for fyne for any documentation
+I am a learner so please upadte @how it works.md so that i can learn and please expalin every function in the javascript and any technical code in detal
 
 Updates
+The two devices connect properly But the app still have these Problems. Please fix them
 
-Please remove this window adn make suer the normal window deisgn still works and the function fo the app works
-I am a learner so please upadte @how it works so that i can learn and please expalin every function in the javascript and any technical code in detal
-
-
-
+1. When a device1 Start receiving clipboard from the other device2. It doesnt sync when device2 starts sending clipboard to device one. So bascically make it that the listening for data functuon and sending of data function can work concurently
