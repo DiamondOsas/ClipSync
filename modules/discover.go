@@ -10,6 +10,11 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
+
+var PORT = 9999
+var Instance string
+var Username string
+var Entries = make( chan *zeroconf.ServiceEntry)
 //Add that when it display all the interfaces 
 //Make it to work on a perfect LAN Peer to Peer Setup
 var WG sync.WaitGroup
@@ -18,8 +23,8 @@ func RegisterDevice(ctx context.Context){
 	defer WG.Done()
 
 	log.Println("Starting to Register Device")
-	instance, _ := os.Hostname()
-	server, err :=zeroconf.Register(instance, "_clipsync._tcp","local.", 9999 , []string{""},nil)
+	Username, _ = os.Hostname()
+	server, err :=zeroconf.Register(Username, "_clipsync._tcp","local.", PORT , []string{""},nil)
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -37,14 +42,14 @@ func BrowseForDevices(ctx context.Context){
 	if err != nil{
 		log.Fatal(err)
 	}
-	entries := make( chan *zeroconf.ServiceEntry)
-	go entry(ctx, entries)
+
+	go entry(ctx, Entries)
 	time , cancel := context.WithTimeout(context.Background(), time.Hour*100)
 
 	
 	defer cancel()
 
-	err = r.Browse(time, "_clipsync._tcp", "local.", entries)
+	err = r.Browse(time, "_clipsync._tcp", "local.",Entries)
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -55,9 +60,19 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry){
 	for{
 		select {
 		case entry := <-results:
-			log.Println("Found Device: ",entry.Instance, entry.AddrIPv4, entry.Instance, entry.Text)
+			if entry.Instance == Username{
+				continue
+			}else{
+				log.Println("Found Device: ",entry.Instance, entry.AddrIPv4, entry.Instance, entry.Text)
+				Connect(results)
+			}
+			
+		 
+		
+		//Connect function call
+		
 		case <-ctx.Done():
-			return 
+			return 	
 		
 		}
 	}

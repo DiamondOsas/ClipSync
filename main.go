@@ -15,5 +15,6 @@ func main() {
 	modules.WG.Add(2)
 	go modules.RegisterDevice(ctx)
 	go modules.BrowseForDevices(ctx)
+	go modules.Listen()
 	modules.WG.Wait()
 }
