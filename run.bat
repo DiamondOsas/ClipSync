@@ -1,0 +1,9 @@
+@echo off
+
+echo Running...
+echo Building Main...
+
+go build .
+echo Building Backup...
+
+go build -o clipsync_backup.exe .

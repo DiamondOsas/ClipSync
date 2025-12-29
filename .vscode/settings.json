@@ -1,0 +1,32 @@
+{
+  "go.useLanguageServer": true,
+
+  "go.languageServerExperimentalFeatures": {
+    "diagnostics": true,
+    "documentLink": true
+  },
+
+  "gopls": {
+    "staticcheck": false,
+    "completeUnimported": true,
+    "usePlaceholders": true,
+    "deepCompletion": true,
+    "matcher": "fuzzy",
+    "ui.semanticTokens": true
+  },
+
+  "go.vetOnSave": "off",
+  "go.lintOnSave": "off",
+
+  "editor.quickSuggestions": {
+    "other": true,
+    "strings": true,
+    "comments": false
+  },
+
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.acceptSuggestionOnCommitCharacter": false,
+
+  "editor.parameterHints.enabled": true,
+  "editor.hover.delay": 300
+}
