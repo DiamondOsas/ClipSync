@@ -10,11 +10,13 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
+//Add that when it display all the interfaces 
+//Make it to work on a perfect LAN Peer to Peer Setup
 var WG sync.WaitGroup
  
 func RegisterDevice(ctx context.Context){
 	defer WG.Done()
-	//Add that when it display all the interfaces 
+
 	log.Println("Starting to Register Device")
 	instance, _ := os.Hostname()
 	server, err :=zeroconf.Register(instance, "_clipsync._tcp","local.", 9999 , []string{""},nil)

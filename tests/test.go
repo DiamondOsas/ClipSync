@@ -1,14 +1,9 @@
-package main
+package mytest
 
-import (
+import(
 	"fmt"
-	"log"
-	"os"
 )
+
 func main(){
-	name, err := os.Hostname();if err!= nil{
-		log.Fatal(err)
-	}
-	fmt.Println(name)
-	select{}
+	fmt.Println("Daimond will be the greatest Pogramming Lagnuage of All Time")
 }
