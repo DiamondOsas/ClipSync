@@ -4,9 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/grandcat/zeroconf"
@@ -14,26 +12,23 @@ import (
 
 var WG sync.WaitGroup
  
-func RegisterDevice(){
+func RegisterDevice(ctx context.Context){
 	defer WG.Done()
 	//Add that when it display all the interfaces 
 	log.Println("Starting to Register Device")
-	server, err :=zeroconf.Register("Clipsync", "_clipsync._tcp","local.", 9999 , []string{""},nil)
+	instance, _ := os.Hostname()
+	server, err :=zeroconf.Register(instance, "_clipsync._tcp","local.", 9999 , []string{""},nil)
 	if err != nil{
 		log.Fatal(err)
 	}
 	log.Println("Deivce Registered")
 	defer server.Shutdown()
 
-	sig := make(chan os.Signal, 1)
-
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-
-	<-sig
+	<- ctx.Done()
 }
 // Discover all services on the network (e.g. _workstation._tcp)
 
-func BrowseForDevices(){
+func BrowseForDevices(ctx context.Context){
 	defer WG.Done()
 	log.Println("Starting to Discover Services")
 	r, err := zeroconf.NewResolver(nil)
@@ -41,22 +36,28 @@ func BrowseForDevices(){
 		log.Fatal(err)
 	}
 	entries := make( chan *zeroconf.ServiceEntry)
-	go entry(entries)
-	ctx , cancel := context.WithTimeout(context.Background(), time.Hour*100)
+	go entry(ctx, entries)
+	time , cancel := context.WithTimeout(context.Background(), time.Hour*100)
 
 	
 	defer cancel()
 
-	err = r.Browse(ctx, "_clipsync._tcp", "local.", entries)
+	err = r.Browse(time, "_clipsync._tcp", "local.", entries)
 	if err != nil{
 		log.Fatal(err)
 	}
 	<- ctx.Done()
 }
 
-func entry(results <-chan *zeroconf.ServiceEntry){
-		for entry := range results {
-			log.Println(entry)
+func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry){
+	for{
+		select {
+		case entry := <-results:
+			log.Println("Found Device: ",entry.Instance, entry.AddrIPv4, entry.Instance, entry.Text)
+		case <-ctx.Done():
+			return 
+		
 		}
+	}
 }
 

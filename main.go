@@ -2,15 +2,18 @@ package main
 
 import (
 	"clipsync/modules"
-
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	modules.WG.Add(2)
-	go modules.RegisterDevice()
-	go modules.BrowseForDevices()
-	modules.WG.Wait()
-
-	// Block the main function from exiting, keeping the background services alive.
 	
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	modules.WG.Add(2)
+	go modules.RegisterDevice(ctx)
+	go modules.BrowseForDevices(ctx)
+	modules.WG.Wait()
 }
