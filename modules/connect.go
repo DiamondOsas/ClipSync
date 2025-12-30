@@ -9,54 +9,71 @@ import (
 
 	"github.com/grandcat/zeroconf"
 )
-type State struct{
-	ConnectedTo []string
+
+type Info struct {
+	ConnectedTo map[string]string
+	Dialer 		bool
 }
 
-func Connect(results <- chan*zeroconf.ServiceEntry){
-	 for entry := range results{
-		log.Println("Trying to Connect to", entry.Instance)
-		conn, err :=net.Dial("tcp", string(entry.AddrIPv4[0].String() + ":" + strconv.Itoa(PORT)))
-		if err != nil{
-			log.Fatal(err)
-		}	
-		
+var Conn net.Conn
+
+func Connect(results *zeroconf.ServiceEntry) {
+	
+		entry := results
+		log.Println("Connecting to", entry.Instance)
+		Conn, err := net.Dial("tcp", string(entry.AddrIPv4[0].String()+":"+strconv.Itoa(PORT)))
+		if err != nil {
+			log.Println(err)
+		}
 
 		//Send and recive confirm form server
-		fmt.Fprintf(conn, "Clipsync Here")
-		fmt.Println("Sending Handshake ")
-		reply := bufio.NewReader(conn)
-		data, err := reply.ReadString('\n')
+		_, err = fmt.Fprintf(Conn, "Clipsync Here")
 		if err != nil{
-			log.Fatal(err)
-		}
-		if data == "I Hear U"{
-			fmt.Println("Recived HandShake")
+			log.Println(err)
 		}
 
-	}
+
+
 
 }
 
-func Listen(){
+func Listen() {
 	defer WG.Done()
-	port := ":" +  strconv.Itoa(PORT)
+	port := ":" + strconv.Itoa(PORT)
 	ln, err := net.Listen("tcp", port)
-	if err != nil{
-		log.Fatal(err)
+	if err != nil {
+		log.Println(err)
 	}
 	fmt.Println("Listening...")
-	for{
-		conn, err := ln.Accept(); if err != nil{log.Fatal(err)}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Println(err)
+		}
 		fmt.Println("Recived Connection")
 		msg := bufio.NewReader(conn)
-		message,_ := msg.ReadString('\n')
-		if message == "Clipsync Here"{
+		message, _ := msg.ReadString('\n')
+		if message == "Clipsync Here" {
 			conn.Write([]byte("I Hear U"))
-			fmt.Println("Responded to ")
+			fmt.Println("Responded")
 		}
-	
-	
+
 	}
 
 }
+
+func ping(){
+	
+}
+
+func SendClipboard(){
+	data := CopyClipboard()
+	Conn.Write("b []byte")
+}
+
+func RecieveClipboard(){
+
+
+}
+
+

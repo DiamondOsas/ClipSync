@@ -5,20 +5,18 @@ import (
 	"net"
 )
 
-func main(){
+func main() {
 	_, err := net.Interfaces()
-	if err != nil{
-		log.Fatal(err)
+	if err != nil {
+		log.Println(err)
 	}
-	
 
 	// for _, ifaces := range interfaces{
-		
+
 	// 		addr, _ := ifaces.Addrs()
 	// 	for _, ip := range addr{
 	// 	if ip.To
 	// }
 	// }
-
 
 }

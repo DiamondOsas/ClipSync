@@ -7,10 +7,10 @@ import (
 	"golang.design/x/clipboard"
 )
 
-
-func init(){
-	err := clipboard.Init(); if err != nil{
-		log.Fatal(err)
+func init() {
+	err := clipboard.Init()
+	if err != nil {
+		log.Println(err)
 	}
 }
 func CopyClipboard() string {
@@ -18,25 +18,24 @@ func CopyClipboard() string {
 	return string(data)
 }
 
-func WriteClipboard(data string) bool{
+func WriteClipboard(data string) bool {
 	byte := []byte(data)
 	write := clipboard.Write(clipboard.FmtText, byte)
-	select{
+	select {
 	case <-write:
 		return false
 	}
 
 }
 
-
-func ChangedClipbord() string{
+func ChangedClipbord(){
 	changed := clipboard.Watch(context.TODO(), clipboard.FmtText)
-	for info := range changed{
-			str := string(info)
-			data := CopyClipboard()
-			if data == str{
-				return data
-			}
+	for info := range changed {
+		str := string(info)
+		data := CopyClipboard()
+		if data == str {
+			SendClipboard()
+		}
 	}
-	return ""
+
 }
