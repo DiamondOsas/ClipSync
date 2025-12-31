@@ -11,11 +11,13 @@ import (
 )
 
 type Info struct {
+	
 	ConnectedTo map[string]string
 	Dialer 		bool
 }
 
 var Conn net.Conn
+var Ln net.Listener
 
 func Connect(results *zeroconf.ServiceEntry) {
 	
@@ -40,13 +42,13 @@ func Connect(results *zeroconf.ServiceEntry) {
 func Listen() {
 	defer WG.Done()
 	port := ":" + strconv.Itoa(PORT)
-	ln, err := net.Listen("tcp", port)
+	Ln, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Println(err)
 	}
 	fmt.Println("Listening...")
 	for {
-		conn, err := ln.Accept()
+		conn, err := Ln.Accept()
 		if err != nil {
 			log.Println(err)
 		}
@@ -68,12 +70,29 @@ func ping(){
 
 func SendClipboard(){
 	data := CopyClipboard()
-	Conn.Write("b []byte")
+	data = data + "\n"
+	bytes := []byte(data)
+	_, err :=Conn.Write(bytes)
+	if err != nil{
+		log.Println(err)
+	}
 }
 
 func RecieveClipboard(){
-
-
+	for {
+		conn, err := Ln.Accept()
+		if err != nil {
+			log.Println(err)
+		}
+		msg := bufio.NewReader(conn)
+		message, _ := msg.ReadString('\n')
+		if message == "Clipsync Here"{
+			break
+		}else{
+			WriteClipboard(message)
+			fmt.Println("Clipboard Updated")
+		}
+	}
 }
 
 
