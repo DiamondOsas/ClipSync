@@ -27,6 +27,8 @@ func WriteClipboard(data string) bool {
 	}
 
 }
+//Find out how to check whether a clipboard fucntion forever below
+
 
 func ChangedClipbord(){
 	changed := clipboard.Watch(context.TODO(), clipboard.FmtText)
