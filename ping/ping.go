@@ -7,7 +7,7 @@ import(
 )
 
 func ping(ips []string) modules.Devices {
-	var mu sync.RWMutex
+	var MU sync.RWMutex
 	var activeips []string
 	if len(ips) == 0{
 		return modules.Devices{}
@@ -20,9 +20,9 @@ func ping(ips []string) modules.Devices {
 		cmd := exec.Command("ping", "-n", "1", "-l", "1", ip )
 		err := cmd.Run()
 		if err ==  nil{
-			mu.Lock()
+			MU.Lock()
 			activeips = append(activeips, val)
-			mu.Unlock()
+			MU.Unlock()
 		modules.WG.Wait()
 		}
 		}(val)
