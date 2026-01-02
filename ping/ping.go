@@ -2,12 +2,12 @@ package ping
 
 import(
 	"os/exec"
-	"clipsync/modules"
+	// "clipsync/modules"
 	"sync"
 )
 
 func Ping(ips []string) []string{
-	defer modules.WG.Done()
+	// defer modules.WG.Done()
 	var MU sync.RWMutex
 	var wg sync.WaitGroup
 	var activeips []string
