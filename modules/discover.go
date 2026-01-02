@@ -10,7 +10,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 )
-
+var IP []string
 var PORT = 9999
 var Instance string
 var Username string
@@ -65,10 +65,8 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 				continue
 			} else {
 				log.Println("Found Device: ", entry.Instance, entry.AddrIPv4, entry.Text)
-				var ips []string
-				ips = append(ips, entry.Instance)
-				all := Devices{ips}
-				fmt.Println("Connected Devices :", all)
+				IP = append(IP, string(entry.AddrIPv4[0].String()))
+				fmt.Println("Connected Device:", entry.Instance)
 				
 				
 				// Connect(entry)

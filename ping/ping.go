@@ -6,11 +6,12 @@ import(
 	"sync"
 )
 
-func ping(ips []string) modules.Devices {
+func Ping(ips []string) []string{
+	defer modules.WG.Done()
 	var MU sync.RWMutex
 	var activeips []string
 	if len(ips) == 0{
-		return modules.Devices{}
+		return nil
 	}
 	for _, val := range ips{
 		modules.WG.Add(1)
@@ -23,10 +24,9 @@ func ping(ips []string) modules.Devices {
 			MU.Lock()
 			activeips = append(activeips, val)
 			MU.Unlock()
-		modules.WG.Wait()
 		}
 		}(val)
 	}
-
-	return  modules.Devices{Ip: activeips}
+	modules.WG.Wait()
+	return activeips
 }
