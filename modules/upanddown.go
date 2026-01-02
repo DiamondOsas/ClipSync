@@ -33,10 +33,3 @@ func RecieveClipboard(){
 		}
 	}
 }
-
-func ping(){
-	
-}
-
-
-

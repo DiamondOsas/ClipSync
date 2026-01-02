@@ -2,6 +2,7 @@ package modules
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -64,8 +65,14 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 				continue
 			} else {
 				log.Println("Found Device: ", entry.Instance, entry.AddrIPv4, entry.Text)
-				Connect(entry)
-				Discovered(entry.Instance ,entry.AddrIPv4[0].String()  )
+				var ips []string
+				ips = append(ips, entry.Instance)
+				all := Devices{ips}
+				fmt.Println("Connected Devices :", all)
+				
+				
+				// Connect(entry)
+				// Discovered(entry.Instance ,entry.AddrIPv4[0].String())
 			}
 
 		//Connect function call
