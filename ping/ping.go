@@ -9,15 +9,15 @@ import(
 func Ping(ips []string) []string{
 	defer modules.WG.Done()
 	var MU sync.RWMutex
+	var wg sync.WaitGroup
 	var activeips []string
 	if len(ips) == 0{
 		return nil
 	}
 	for _, val := range ips{
-		modules.WG.Add(1)
+		wg.Add(1)
 		go func(ip string){
-		defer modules.WG.Done()
-
+		defer wg.Done()
 		cmd := exec.Command("ping", "-n", "1", "-l", "1", ip )
 		err := cmd.Run()
 		if err ==  nil{
@@ -27,6 +27,6 @@ func Ping(ips []string) []string{
 		}
 		}(val)
 	}
-	modules.WG.Wait()
+	wg.Wait()
 	return activeips
 }

@@ -1,34 +1,33 @@
 package modules
 
 import (
+	"bufio"
 	"fmt"
 	"log"
-	"bufio"
 )
 
-
-func SendClipboard(){
+func SendClipboard() {
 	data := CopyClipboard()
 	data = data + "\n"
 	bytes := []byte(data)
-	_, err :=Conn.Write(bytes)
-	if err != nil{
+	_, err := Conn.Write(bytes)
+	if err != nil {
 		log.Println(err)
 	}
 }
 
-func RecieveClipboard(){
+func RecieveClipboard() {
 	for {
 		conn, err := Ln.Accept()
 		if err != nil {
 			log.Println(err)
 		}
 		msg := bufio.NewReader(conn)
-		message, _ := msg.ReadString('\n')
-		if message == "Clipsync Here"{
+		Recieved, _ = msg.ReadString('\n')
+		if Recieved == "Clipsync Here" {
 			break
-		}else{
-			WriteClipboard(message)
+		} else {
+			WriteClipboard(Recieved)
 			fmt.Println("Clipboard Updated")
 		}
 	}

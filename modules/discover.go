@@ -15,6 +15,7 @@ var PORT = 9999
 var Instance string
 var Username string
 var Entries = make(chan *zeroconf.ServiceEntry)
+var Recieved string
 
 // Add that when it display all the interfaces
 // Make it to work on a perfect LAN Peer to Peer Setup
@@ -26,7 +27,7 @@ func RegisterDevice(ctx context.Context) {
 	log.Println("Starting to Register Device")
 	Username, _ = os.Hostname()
 	server, err := zeroconf.Register(Username, "_clipsync._tcp", "local.", PORT, []string{""}, nil)
-	if err != nil {
+	if err != nil {	
 		log.Println(err)
 	}
 	log.Println("Deivce Registered")
@@ -76,7 +77,7 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 		//Connect function call
 
 		case <-ctx.Done():
-			return
+			return	
 
 		}
 	}
