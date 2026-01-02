@@ -18,25 +18,20 @@ func CopyClipboard() string {
 	return string(data)
 }
 
-func WriteClipboard(data string) bool {
+func WriteClipboard(data string) {
 	byte := []byte(data)
-	write := clipboard.Write(clipboard.FmtText, byte)
-	select {
-	case <-write:
-		return false
-	}
+	clipboard.Write(clipboard.FmtText, byte)
 
 }
 
 //Find out how to check whether a clipboard fucntion forever below
 
-func ChangedClipbord() {
+func ChangedClipbord()bool {
 	defer WG.Done()
 	changed := clipboard.Watch(context.TODO(), clipboard.FmtText)
 	for info := range changed {
 		str := string(info)
 		if str == Recieved {
-			return true
 			break
 		} else {
 			data := CopyClipboard()
@@ -46,5 +41,5 @@ func ChangedClipbord() {
 			}
 		}
 	}
-
+	return true
 }

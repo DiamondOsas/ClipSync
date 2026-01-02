@@ -22,6 +22,8 @@ func TestChanged(t *testing.T){
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go ChangedClipbord()
-	WriteClipboard(data string)
+	WriteClipboard("ok")
+
+	
 	
 }
