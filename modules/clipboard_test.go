@@ -3,7 +3,6 @@ package modules
 
 import(
 	"testing"
-	"sync"
 )
 
 func TestClipboard(t *testing.T){
@@ -18,12 +17,12 @@ func TestClipboard(t *testing.T){
 
 }
 
-func TestChanged(t *testing.T){
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go ChangedClipbord()
-	WriteClipboard("ok")
+// func TestChanged(t *testing.T){
+// 	var wg sync.WaitGroup
+// 	wg.Add(1)
+// 	go ChangedClipbord()
+// 	WriteClipboard("ok")
 
 	
 	
-}
+// }

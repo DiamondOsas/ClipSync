@@ -13,7 +13,7 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	modules.WG.Add(4)
+	modules.WG.Add(5)
 	go modules.RegisterDevice(ctx)
 	go modules.BrowseForDevices(ctx)
 	go modules.Listen()
@@ -27,5 +27,6 @@ func main() {
 		<- ctx.Done()
 		}
 	}(ctx)
+	go modules.ChangedClipbord(ctx)
 	modules.WG.Wait()
 }
