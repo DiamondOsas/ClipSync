@@ -1,33 +1,29 @@
-package 	
+package network
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"time"
 
+	"clipsync/internal/globals"
 	"github.com/grandcat/zeroconf"
 )
 
-var IP []string
-var PORT = 9999
 var Instance string
 var Username string
 var Entries = make(chan *zeroconf.ServiceEntry)
-var Recieved string
 
 // Add that when it display all the interfaces
 // Make it to work on a perfect LAN Peer to Peer Setup
-var WG sync.WaitGroup
 
 func RegisterDevice(ctx context.Context) {
-	defer WG.Done()
+	defer globals.WG.Done()
 
 	log.Println("Starting to Register Device")
 	Username, _ = os.Hostname()
-	server, err := zeroconf.Register(Username, "_clipsync._tcp", "local.", PORT, []string{""}, nil)
+	server, err := zeroconf.Register(Username, "_clipsync._tcp", "local.", globals.PORT, []string{""}, nil)
 	if err != nil {
 		log.Println(err)
 	}
@@ -40,7 +36,7 @@ func RegisterDevice(ctx context.Context) {
 // Discover all services on the network (e.g. _workstation._tcp)
 
 func BrowseForDevices(ctx context.Context) {
-	defer WG.Done()
+	defer globals.WG.Done()
 	log.Println("Starting to Discover Services")
 	r, err := zeroconf.NewResolver(nil)
 	if err != nil {
@@ -67,7 +63,7 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 				continue
 			} else {
 				log.Println("Found Device: ", entry.Instance, entry.AddrIPv4, entry.Text)
-				IP = append(IP, string(entry.AddrIPv4[0].String()))
+				globals.IP = append(globals.IP, string(entry.AddrIPv4[0].String()))
 				fmt.Println("Connected Device:", entry.Instance)
 
 				// Connect(entry)

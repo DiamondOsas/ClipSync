@@ -1,14 +1,14 @@
 package ping
 
 import (
-	"clipsync/internal"
+	"clipsync/internal/network"
 	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestPing(t *testing.T) {
-	want := internal.Devices{Ip: []string{"google.com", "github.com"}}
+	want := network.Devices{Ip: []string{"google.com", "github.com"}}
 	test := []string{"google.com", "192.168.23.4", "github.com"}
 	output := Ping(test)
 	if !reflect.DeepEqual(output, want) {

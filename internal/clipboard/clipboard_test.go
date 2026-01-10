@@ -1,13 +1,14 @@
-package clipboard
+package clipboard_test
 
 import (
 	"testing"
+	"clipsync/internal/clipboard"
 )
 
 func TestClipboard(t *testing.T) {
 	want := "Testing is taking place..."
-	WriteClipboard(want)
-	output := CopyClipboard()
+	clipboard.WriteClipboard(want)
+	output := clipboard.CopyClipboard()
 
 	if want != output {
 		t.Errorf("Input: %v Output : %v", want, output)

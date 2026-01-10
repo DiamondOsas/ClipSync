@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 
+	"clipsync/internal/globals"
 	"github.com/grandcat/zeroconf"
 )
 
@@ -23,7 +24,7 @@ func Connect(results *zeroconf.ServiceEntry) {
 
 	entry := results
 	log.Println("Connecting to", entry.Instance)
-	Conn, err := net.Dial("tcp", string(entry.AddrIPv4[0].String()+":"+strconv.Itoa(PORT)))
+	Conn, err := net.Dial("tcp", string(entry.AddrIPv4[0].String()+":"+strconv.Itoa(globals.PORT)))
 	if err != nil {
 		log.Println(err)
 	}
@@ -36,8 +37,8 @@ func Connect(results *zeroconf.ServiceEntry) {
 }
 
 func Listen() {
-	defer WG.Done()
-	port := ":" + strconv.Itoa(PORT)
+	defer globals.WG.Done()
+	port := ":" + strconv.Itoa(globals.PORT)
 	Ln, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Println(err)
