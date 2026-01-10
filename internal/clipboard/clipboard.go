@@ -1,10 +1,9 @@
-package internal
+package clipboard
 
 import (
 	"context"
 	"log"
 	"sync"
-
 	"golang.design/x/clipboard"
 )
 
@@ -22,7 +21,6 @@ func CopyClipboard() string {
 func WriteClipboard(data string) {
 	byte := []byte(data)
 	clipboard.Write(clipboard.FmtText, byte)
-
 }
 
 //Find out how to check whether a clipboard fucntion forever below

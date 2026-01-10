@@ -1,16 +1,16 @@
-package internal
+package network
 
 import (
 	"bufio"
-	"clipsync/internal/_clipboard"
+	"clipsync/internal/clipboard"
 	"fmt"
 	"log"
 
-	"golang.design/x/clipboard"
+	// "golang.design/x/clipboard"
 )
 
 func SendClipboard() {
-	data := internal._clipboard.CopyClipboard()
+	data := clipboard.CopyClipboard()
 	data = data + "\n"
 	bytes := []byte(data)
 	_, err := Conn.Write(bytes)
@@ -30,7 +30,7 @@ func RecieveClipboard() {
 		if Recieved == "Clipsync Here" {
 			break
 		} else {
-			WriteClipboard(Recieved)
+			clipboard.WriteClipboard(Recieved)
 			fmt.Println("Clipboard Updated")
 		}
 	}
