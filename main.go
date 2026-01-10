@@ -15,8 +15,11 @@ func main() {
 	defer stop()
 	modules.WG.Add(5)
 	go modules.RegisterDevice(ctx)
+	fmt.Println(1)
 	go modules.BrowseForDevices(ctx)
+	fmt.Println(2)
 	go modules.Listen()
+	fmt.Println(3)
 	go func(ctx context.Context){
 		defer modules.WG.Done()
 		for {
@@ -27,6 +30,11 @@ func main() {
 		<- ctx.Done()
 		}
 	}(ctx)
-	go modules.ChangedClipbord(ctx)
+	fmt.Println(4)
+	for{
+		if len(modules.IP) != 0{
+			go modules.ChangedClipbord(ctx)
+		}
+	}
 	modules.WG.Wait()
 }

@@ -40,7 +40,7 @@ func ChangedClipbord(ctx context.Context)bool {
 			data := CopyClipboard()
 			same := (data == str)
 			mu.Unlock()
-			if  same{
+			if same{
 				//Test WriteClipboard("ok") 
 				 SendClipboard()
 				 return true
