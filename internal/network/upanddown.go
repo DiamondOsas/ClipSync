@@ -1,13 +1,16 @@
-package modules
+package internal
 
 import (
 	"bufio"
+	"clipsync/internal/_clipboard"
 	"fmt"
 	"log"
+
+	"golang.design/x/clipboard"
 )
 
 func SendClipboard() {
-	data := CopyClipboard()
+	data := internal._clipboard.CopyClipboard()
 	data = data + "\n"
 	bytes := []byte(data)
 	_, err := Conn.Write(bytes)

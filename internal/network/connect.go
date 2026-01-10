@@ -1,4 +1,4 @@
-package modules
+package internal
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 )
 
 // type Info struct {
-	
+
 // 	ConnectedTo map[string]string
 // 	Dialer 		bool
 // }
@@ -20,19 +20,19 @@ var Conn net.Conn
 var Ln net.Listener
 
 func Connect(results *zeroconf.ServiceEntry) {
-	
-		entry := results
-		log.Println("Connecting to", entry.Instance)
-		Conn, err := net.Dial("tcp", string(entry.AddrIPv4[0].String()+":"+strconv.Itoa(PORT)))
-		if err != nil {
-			log.Println(err)
-		}
 
-		//Send and recive confirm form server
-		_, err = fmt.Fprintf(Conn, "Clipsync Here")
-		if err != nil{
-			log.Println(err)
-		}
+	entry := results
+	log.Println("Connecting to", entry.Instance)
+	Conn, err := net.Dial("tcp", string(entry.AddrIPv4[0].String()+":"+strconv.Itoa(PORT)))
+	if err != nil {
+		log.Println(err)
+	}
+
+	//Send and recive confirm form server
+	_, err = fmt.Fprintf(Conn, "Clipsync Here")
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func Listen() {
@@ -59,5 +59,3 @@ func Listen() {
 	}
 
 }
-
-

@@ -1,17 +1,15 @@
-package modules
+package internal
 
-
-import(
+import (
 	"testing"
 )
 
-func TestClipboard(t *testing.T){
+func TestClipboard(t *testing.T) {
 	want := "Testing is taking place..."
 	WriteClipboard(want)
 	output := CopyClipboard()
-	
-	
-	if want != output{
+
+	if want != output {
 		t.Errorf("Input: %v Output : %v", want, output)
 	}
 
@@ -23,6 +21,4 @@ func TestClipboard(t *testing.T){
 // 	go ChangedClipbord()
 // 	WriteClipboard("ok")
 
-	
-	
 // }

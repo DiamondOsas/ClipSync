@@ -1,40 +1,40 @@
 package main
 
 import (
-	"clipsync/modules"
+	"clipsync/internal"
 	"clipsync/ping"
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	"fmt"
-)	
+)
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	modules.WG.Add(5)
-	go modules.RegisterDevice(ctx)
+	internal.WG.Add(5)
+	go internal.RegisterDevice(ctx)
 	fmt.Println(1)
-	go modules.BrowseForDevices(ctx)
+	go internal.BrowseForDevices(ctx)
 	fmt.Println(2)
-	go modules.Listen()
+	go internal.Listen()
 	fmt.Println(3)
-	go func(ctx context.Context){
-		defer modules.WG.Done()
+	go func(ctx context.Context) {
+		defer internal.WG.Done()
 		for {
-		devices	:= ping.Ping(modules.IP)
-		if len(devices) > 0{
-			fmt.Println(modules.Devices{Ip: devices})	
-		}
-		<- ctx.Done()
+			devices := ping.Ping(internal.IP)
+			if len(devices) > 0 {
+				fmt.Println(internal.Devices{Ip: devices})
+			}
+			<-ctx.Done()
 		}
 	}(ctx)
 	fmt.Println(4)
-	for{
-		if len(modules.IP) != 0{
-			go modules.ChangedClipbord(ctx)
+	for {
+		if len(internal.IP) != 0 {
+			go internal.ChangedClipbord(ctx)
 		}
 	}
-	modules.WG.Wait()
+	internal.WG.Wait()
 }

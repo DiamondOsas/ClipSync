@@ -1,4 +1,4 @@
-package modules
+package internal
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 )
+
 var IP []string
 var PORT = 9999
 var Instance string
@@ -27,7 +28,7 @@ func RegisterDevice(ctx context.Context) {
 	log.Println("Starting to Register Device")
 	Username, _ = os.Hostname()
 	server, err := zeroconf.Register(Username, "_clipsync._tcp", "local.", PORT, []string{""}, nil)
-	if err != nil {	
+	if err != nil {
 		log.Println(err)
 	}
 	log.Println("Deivce Registered")
@@ -68,8 +69,7 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 				log.Println("Found Device: ", entry.Instance, entry.AddrIPv4, entry.Text)
 				IP = append(IP, string(entry.AddrIPv4[0].String()))
 				fmt.Println("Connected Device:", entry.Instance)
-				
-				
+
 				// Connect(entry)
 				// Discovered(entry.Instance ,entry.AddrIPv4[0].String())
 			}
@@ -77,16 +77,15 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 		//Connect function call
 
 		case <-ctx.Done():
-			return	
+			return
 
 		}
 	}
 }
 
-func Discovered(name string, ip string){
+func Discovered(name string, ip string) {
 	// var arrnames map[string]string
 	// arrnames[name] = ip
-
 
 	// Info{arrnames, true}
 }

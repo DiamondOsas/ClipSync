@@ -1,9 +1,10 @@
-package modules
+package internal
 
 import (
 	"context"
 	"log"
 	"sync"
+
 	"golang.design/x/clipboard"
 )
 
@@ -26,7 +27,7 @@ func WriteClipboard(data string) {
 
 //Find out how to check whether a clipboard fucntion forever below
 
-func ChangedClipbord(ctx context.Context)bool {
+func ChangedClipbord(ctx context.Context) bool {
 	var mu sync.RWMutex
 	defer WG.Done()
 	changed := clipboard.Watch(context.TODO(), clipboard.FmtText)
@@ -35,15 +36,15 @@ func ChangedClipbord(ctx context.Context)bool {
 		if str == Recieved {
 			continue
 		} else {
-			
+
 			mu.Lock()
 			data := CopyClipboard()
 			same := (data == str)
 			mu.Unlock()
-			if same{
-				//Test WriteClipboard("ok") 
-				 SendClipboard()
-				 return true
+			if same {
+				//Test WriteClipboard("ok")
+				SendClipboard()
+				return true
 			}
 		}
 	}
