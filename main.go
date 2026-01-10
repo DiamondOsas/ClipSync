@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"clipsync/Internal/clipboard"
+	// "clipsync/Internal/clipboard"
 	"clipsync/internal/globals"
 	"clipsync/internal/network"
 	"clipsync/internal/ping"
@@ -36,7 +36,7 @@ func main() {
 	fmt.Println(4)
 	for {
 		if len(globals.IP) != 0 {
-			go clipboard.ChangedClipbord(ctx)
+			// go clipboard.ChangedClipbord(ctx)
 		}
 	}
 	globals.WG.Wait()
