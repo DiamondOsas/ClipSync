@@ -9,4 +9,5 @@ var (
 	Recieved string
 	IP       []string
 	PORT     = 9999
+	Username  string
 )

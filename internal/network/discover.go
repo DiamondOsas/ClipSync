@@ -12,7 +12,6 @@ import (
 )
 
 var Instance string
-var Username string
 var Entries = make(chan *zeroconf.ServiceEntry)
 
 // Add that when it display all the interfaces
@@ -20,16 +19,21 @@ var Entries = make(chan *zeroconf.ServiceEntry)
 
 func RegisterDevice(ctx context.Context) {
 	defer globals.WG.Done()
+	log.Println("Registering Device")
+	globals.Username, _ = os.Hostname()
 
-	log.Println("Starting to Register Device")
-	Username, _ = os.Hostname()
-	server, err := zeroconf.Register(Username, "_clipsync._tcp", "local.", globals.PORT, []string{""}, nil)
+
+	server, err := zeroconf.Register(globals.Username, "_clipsync._tcp", "local.", globals.PORT, []string{""}, nil)
+	
 	if err != nil {
+		log.Println("Could not Register Device Please Make sure you are connected to a net")
 		log.Println(err)
+
 	}
+	
 	log.Println("Deivce Registered")
 	defer server.Shutdown()
-
+	
 	<-ctx.Done()
 }
 
@@ -38,7 +42,8 @@ func RegisterDevice(ctx context.Context) {
 func BrowseForDevices(ctx context.Context) {
 	defer globals.WG.Done()
 	log.Println("Starting to Discover Services")
-	r, err := zeroconf.NewResolver(nil)
+	reslover, err := zeroconf.NewResolver(nil)
+	
 	if err != nil {
 		log.Println(err)
 	}
@@ -48,10 +53,12 @@ func BrowseForDevices(ctx context.Context) {
 
 	defer cancel()
 
-	err = r.Browse(time, "_clipsync._tcp", "local.", Entries)
+	err = reslover.Browse(time, "_clipsync._tcp", "local.", Entries)
+	
 	if err != nil {
 		log.Println(err)
 	}
+	
 	<-ctx.Done()
 }
 
@@ -59,7 +66,7 @@ func entry(ctx context.Context, results <-chan *zeroconf.ServiceEntry) {
 	for {
 		select {
 		case entry := <-results:
-			if entry.Instance == Username {
+			if entry.Instance == globals.Username {
 				continue
 			} else {
 				log.Println("Found Device: ", entry.Instance, entry.AddrIPv4, entry.Text)
