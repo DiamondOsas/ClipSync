@@ -41,5 +41,5 @@ func main() {
 			// go clipboard.ChangedClipbord(ctx)
 		}
 	}
-	globals.WG.Wait()
+	globals.WG.Wait()	
 }

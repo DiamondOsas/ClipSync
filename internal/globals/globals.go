@@ -11,3 +11,4 @@ var (
 	PORT     = 9999
 	Username  string
 )
+// ust waiting for some... 
