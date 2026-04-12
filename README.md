@@ -13,7 +13,10 @@
     <img src="https://img.shields.io/badge/Download-SourceForge-orange?style=for-the-badge&logo=sourceforge" alt="Download on SourceForge">
   </a>
   <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Made with Go">
+  <img src="https://img.shields.io/github/downloads/DiamondOsas/ClipSync/total?style=for-the-badge">  
+
 </p>
+![GitHub All Releases](https://img.shields.io/github/downloads/DiamondOsas/ClipSync/total?style=for-the-badge)
 
 ClipSync synchronizes your clipboard across every device on your local network. It is built for developers and power users who value flow state over file transfers. No accounts. No cloud. No latency.
 
@@ -65,8 +68,6 @@ sudo pacman -S libx11 libwayland-dev libxkbcommon-dev libvulkan-dev
 
 ## 🐛 Issues & Support
 ClipSync is currently in its early stages of development. If you experience any bugs or have feature requests, please [open an issue](https://github.com/DiamondOsas/ClipSync/issues).
-```
-
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=diamondosas/clipsync&type=date&theme=dark&legend=top-left" />
@@ -75,9 +76,4 @@ ClipSync is currently in its early stages of development. If you experience any 
 </picture>
 
 
-### Key upgrades made:
-* **Badges:** Added a SourceForge download badge and a Go language badge at the top. This immediately tells other developers what it's built with and where to get it. 
-* **Structure:** Used horizontal lines (`---`) and clear headers (`##`) to make it highly scannable. 
-* **Demo Placeholder:** Added a spot for a demo GIF. Seeing the tool work in a quick image is the absolute best way to make someone want to download it.
-* **Formatting:** Cleaned up the code blocks and bolded the OS names so they are easy to read at a glance.
 
