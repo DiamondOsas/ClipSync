@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "HkappWrap"
+rootProject.name = "Clipsync"
 include(":app")
