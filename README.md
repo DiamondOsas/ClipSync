@@ -9,14 +9,17 @@
 </p>
 
 <p align="center">
-  <a href="YOUR_SOURCEFORGE_LINK_HERE">
+  <!--<a href="YOUR_SOURCEFORGE_LINK_HERE">
     <img src="https://img.shields.io/badge/Download-SourceForge-orange?style=for-the-badge&logo=sourceforge" alt="Download on SourceForge">
-  </a>
+  </a>-->
   <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Made with Go">
-  <img src="https://img.shields.io/github/downloads/DiamondOsas/ClipSync/total?style=for-the-badge">  
+  <!--<img src="https://img.shields.io/github/downloads/DiamondOsas/ClipSync/total?style=for-the-badge">  -->
+  <a href="https://diamondosas.github.io/clipsync/">
+      <img src="https://img.shields.io/badge/Download-Now-blue?style=for-the-badge&logo=appveyor" alt="Download">
+    </a>
 
 </p>
-![GitHub All Releases](https://img.shields.io/github/downloads/DiamondOsas/ClipSync/total?style=for-the-badge)
+
 
 ClipSync synchronizes your clipboard across every device on your local network. It is built for developers and power users who value flow state over file transfers. No accounts. No cloud. No latency.
 
