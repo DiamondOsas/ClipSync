@@ -3,7 +3,7 @@ package com.diamond.clipsync
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import org.gioui.GioActivity // Import the Gio screen
+import org.gioui.GioActivity // Gio i hate youuu
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
