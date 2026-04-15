@@ -35,4 +35,5 @@ cmd.txt
 clipsync.apk
 clipsync.apk.idsig
 constraints.txt
-android/app/libs
+android/app/libs/
+android/build/
