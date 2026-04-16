@@ -6,7 +6,9 @@ plugins {
 android {
     namespace = "com.diamond.clipsync"
     compileSdk = 33
-
+    
+    buildToolsVersion = "33.0.0"
+    
     defaultConfig {
         applicationId = "com.diamond.clipsync"
         minSdk = 24
