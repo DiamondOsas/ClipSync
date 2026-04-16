@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "com.diamond.clipsync"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 33  
         versionCode = 1
         versionName = "1.0"
     }
@@ -18,6 +18,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false    // set true to shrink/obfuscate code
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -32,5 +33,5 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/clipsync.aar"))
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
 }
