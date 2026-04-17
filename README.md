@@ -23,7 +23,7 @@
 
 ClipSync synchronizes your clipboard across every device on your local network. It is built for developers and power users who value flow state over file transfers. No accounts. No cloud. No latency.
 
-![Demo GIF Placeholder](assets/demo.gif) *(Tip: Record a quick 5-second GIF showing you copying text on one screen and pasting on another!)*
+<!--![Demo GIF Placeholder](assets/demo.gif) *(Tip: Record a quick 5-second GIF showing you copying text on one screen and pasting on another!)* -->
 
 ---
 
