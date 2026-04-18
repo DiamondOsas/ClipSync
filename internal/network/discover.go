@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 
 	"clipsync/internal/globals"
@@ -13,14 +14,41 @@ import (
 )
 
 var Entries = make(chan *zeroconf.ServiceEntry)
- 	
+
+func getAllInterfaces() []net.Interface {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+
+	var result []net.Interface
+	for _, iface := range ifaces {
+		// Skip loopback and down interfaces
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		// Skip interfaces with no addresses
+		addrs, err := iface.Addrs()
+		if err != nil || len(addrs) == 0 {
+			continue
+		}
+		result = append(result, iface)
+	}
+	return result
+}
+
 func RegisterDevice(ctx context.Context, name string) error {
 	if name == "" {
 		globals.Username, _ = os.Hostname()
 		name = globals.Username
 	}
 
-	server, err := zeroconf.Register(name, "_clipsync._tcp", "local.", globals.PORT, []string{""}, nil)
+	ifaces := getAllInterfaces()
+
+	server, err := zeroconf.Register(name, "_clipsync._tcp", "local.", globals.PORT, []string{""}, ifaces)
 
 	if err != nil {
 		log.Println(err)
@@ -36,7 +64,8 @@ func RegisterDevice(ctx context.Context, name string) error {
 // Discover all services on the network (e.g. _workstation._tcp)
 
 func BrowseForDevices(ctx context.Context) error {
-	reslover, err := zeroconf.NewResolver(nil)
+	ifaces := getAllInterfaces()
+	reslover, err := zeroconf.NewResolver(zeroconf.SelectIfaces(ifaces))
 
 	if err != nil {
 		log.Println(err)
