@@ -139,11 +139,11 @@ ClipSync is actively built. If something breaks or you have an idea:
 
 If ClipSync saves you time, star it. Helps other people find it.
 
-<picture>
+<!-- <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=diamondosas/clipsync&type=date&theme=dark&legend=top-left" />
   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=diamondosas/clipsync&type=date&legend=top-left" />
   <img alt="ClipSync GitHub star history" src="https://api.star-history.com/chart?repos=diamondosas/clipsync&type=date&legend=top-left" />
-</picture>
+</picture> -->
 
 ---
 
