@@ -7,6 +7,31 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build with Gradle
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: clipsync-android-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+
   build:
     name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
     runs-on: ${{ matrix.runner }}
@@ -144,6 +169,12 @@ jobs:
           pattern: bin-*
           merge-multiple: true
 
+      - name: Download Android Artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: clipsync-android-apk
+
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
@@ -153,3 +184,4 @@ jobs:
           files: |
             clipsync-*.zip
             clipsync-*.tar.gz
+            app-release-unsigned.apk
