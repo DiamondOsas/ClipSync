@@ -1,12 +1,8 @@
 name: Build and Release
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - "VERSION"
+  workflow_dispatch: 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-workflow_dispatch:
 
 jobs:
   build-android:
