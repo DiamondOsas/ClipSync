@@ -10,7 +10,7 @@ android {
     
     defaultConfig {
         applicationId = "com.diamond.clipsync"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
