@@ -1,16 +1,43 @@
 name: Build and Release
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - "VERSION"
+  workflow_dispatch: 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build with Gradle
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      # Rename the file here so it isn't zipped and has the right name
+      - name: Prepare APK
+        run: mv android/app/build/outputs/apk/release/app-release-unsigned.apk clipsync-android.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: clipsync-android
+          path: clipsync-android.apk
+
   build:
     name: Build (${{ matrix.goos }}-${{ matrix.goarch }})
     runs-on: ${{ matrix.runner }}
-    continue-on-error: true   # one failing target won't block the others
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -27,8 +54,6 @@ jobs:
             goarch: arm64
             runner: macos-latest
             cgo: "1"
-          # amd64 cross-compiled from the ARM64 runner; CGO disabled because
-          # there is no amd64 toolchain available on Apple Silicon hosted runners
           - goos: darwin
             goarch: amd64
             runner: macos-latest
@@ -107,9 +132,9 @@ jobs:
           path: ${{ env.ASSET_PATH }}
 
   release:
-    needs: build
+    # 1. Added build-android here so release waits for it
+    needs: [build, build-android]
     runs-on: ubuntu-latest
-    # run even if some (or all) build jobs failed
     if: always()
     permissions:
       contents: write
@@ -137,12 +162,17 @@ jobs:
           done
 
       - name: Download Artifacts
-        # continue if some targets produced no artifact (they failed above)
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: bin-*
           merge-multiple: true
+
+      - name: Download Android Artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: clipsync-android
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
@@ -153,3 +183,4 @@ jobs:
           files: |
             clipsync-*.zip
             clipsync-*.tar.gz
+            clipsync-android.apk

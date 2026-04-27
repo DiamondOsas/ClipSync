@@ -36,4 +36,6 @@ clipsync.apk
 clipsync.apk.idsig
 constraints.txt
 android/app/libs/
-android/build/
+android/build/android/.gradle
+android/app/build
+android/build

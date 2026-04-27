@@ -6,14 +6,11 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-        flatDir {
-            dirs("app/libs")   // ← add this
-        }
     }
 }
-
-rootProject.name = "Clipsync"
-include(":app")         // registers the "app" module
+rootProject.name = "ClipSync"
+include(":app")
