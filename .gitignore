@@ -39,3 +39,6 @@ android/app/libs/
 android/build/android/.gradle
 android/app/build
 android/build
+run.bat
+go.sum
+.gitignore
