@@ -8,28 +8,38 @@ import (
 
 
 
-// It shooud be a goroutune and it should work in such a way that the fucntion is kickstaed bt a pointer 
-// It should then like update the vie which then redrws the GUI tell me if my implemtation is wrong 
+// UpdateDevices handles adding a new device to both global and GUI state.
 func UpdateDevices(Device globals.Device) {
-	// 1. Create a GUI device from the backend device
-	newDevice := pages.Device{
-		Name: Device.Name,
-		IP:   Device.Ip,
+	// 1. Update Global State
+	globals.ConnDevicesMu.Lock()
+	globals.ConnDevices = append(globals.ConnDevices, Device)
+	globals.ConnDevicesMu.Unlock()
+
+	// 2. Update GUI state if active
+	if gui.State != nil {
+		newDevice := pages.Device{
+			Name: Device.Name,
+			IP:   Device.Ip,
+		}
+		gui.State.Devices = append(gui.State.Devices, newDevice)
+		RedrawUI()
 	}
-
-	// 2. Add it to our State (using the global pointer State)
-	gui.State.Devices = append(gui.State.Devices, newDevice)
-
-	// 3. Tell the UI to redraw
-	RedrawUI()
 }
 
+// UpdateClipboard handles adding new clipboard data to both global and GUI state.
 func UpdateClipboard(data string) {
-	// It is not meant to be append because i want it to act like a stack
-	// This adds the new item to the FRONT of the list
-	if data != ""{
-		gui.State.History = append([]string{data}, gui.State.History...)
+	if data == "" {
+		return
+	}
 
+	// 1. Update Global State (Stack behavior: newest first)
+	globals.ClipHistoryMu.Lock()
+	globals.ClipHistory = append([]string{data}, globals.ClipHistory...)
+	globals.ClipHistoryMu.Unlock()
+
+	// 2. Update GUI state if active
+	if gui.State != nil {
+		gui.State.History = append([]string{data}, gui.State.History...)
 		RedrawUI()
 	}
 }

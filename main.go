@@ -5,87 +5,36 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"slices"
 	"syscall"
 	
 	"clipsync/gui"
+	"clipsync/internal/cli"
 	"clipsync/internal/clipboard"
-	"clipsync/internal/globals"
-	"clipsync/internal/network"
-	"clipsync/internal/ping"
-	"clipsync/internal/view"
-
-	"golang.org/x/sync/errgroup"
-	// "clipsync/internal/ping"
+	"clipsync/internal/core"
 )
 
 var Version = "dev"
 
 func main() {
-	
-	
 	clipboard.Init()
 
+	// Intercept CLI execution. If it returns true, we shouldn't start GUI.
+	if cli.Run() {
+		return
+	}
+
+	// Setup context for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	eg, ctx := errgroup.WithContext(ctx)
-	
-	eg.Go(func() error{
-		return network.RegisterDevice(ctx, "")
-	})
-	
-	eg.Go(func() error{
-		return network.BrowseForDevices(ctx)
-	})
-
-	eg.Go(func() error{
-		return network.Listen(ctx)
-	})
-
-	eg.Go(func() error{
-		for {
-			data := clipboard.WatchClipboard(ctx)
-			if !slices.Equal(data, network.Buffer) {
-				network.SendClipboard(data)
-				view.UpdateClipboard(string(data))
-			}
+	// Run background sync tasks in a goroutine
+	go func() {
+		err := core.StartSync(ctx)
+		if err != nil && err != context.Canceled {
+			log.Printf("Background sync stopped: %v", err)
 		}
-	})
-	eg.Go(func() error {
-		<-network.Ready
-		for {
-			buffer, n := network.RecieveClipboard()
-			data := string(buffer[:n])
-			clipboard.WriteClipboard(data)
-			view.UpdateClipboard(data)
-		}
-	})
+	}()
 	
-	eg.Go(func() error {
-		for {
-			globals.IPSMu.Lock()
-			ipsToPing := make([]string, len(globals.IPS))
-			copy(ipsToPing, globals.IPS)
-			globals.IPSMu.Unlock()
-			
-			currentIPS := ping.PingIPS(ipsToPing)
-
-			globals.IPSMu.Lock()
-			globals.IPS = currentIPS
-			globals.IPSMu.Unlock()
-		}
-
-	})
-
-	eg.Go(func() error{
-		err := eg.Wait()
-		if err != nil {
-			log.Println(err)
-		}
-		return err
-	})
-	
+	// Start the GUI (blocking call)
 	gui.StartGUI()
-	
 }

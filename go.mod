@@ -6,6 +6,7 @@ require (
 	gioui.org v0.9.0
 	gioui.org/x v0.9.0
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/mattn/go-isatty v0.0.22
 	golang.design/x/clipboard v0.7.1
 	golang.org/x/sync v0.20.0
 )

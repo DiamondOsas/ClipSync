@@ -11,13 +11,16 @@ var (
 	PORT     = 9999
 	Username string
 )
-// ust waiting for some... 
 
-type Device struct{
- 	Name string
-  	Ip  string
+type Device struct {
+	Name string
+	Ip   string
 }
 
-var ConnDevices []Device
+var (
+	ConnDevicesMu sync.Mutex
+	ConnDevices   []Device
 
-var ClipHistory []string
+	ClipHistoryMu sync.Mutex
+	ClipHistory   []string
+)
