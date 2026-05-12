@@ -52,7 +52,7 @@ func TestFullNetworkWorkflow(t *testing.T) {
 	// 5. Wait for discovery and connection verification
 	// We expect:
 	// - globals.IPS to be updated
-	// - A "ClipSync" message to be received via UDP because BrowseForDevices calls Connect(ip)
+	// - We can send and receive a clipboard message over UDP
 	
 	found := false
 	receivedCS := false
@@ -80,17 +80,17 @@ func TestFullNetworkWorkflow(t *testing.T) {
 				t.Error("Timed out waiting for device discovery")
 			}
 			if !receivedCS {
-				t.Error("Timed out waiting for ClipSync handshake message")
+				t.Error("Timed out waiting for Test message")
 			}
 			return
 		case msg := <-received:
 			t.Logf("Received message: %s", msg)
-			if msg == "ClipSync" {
-				t.Log("Successfully received ClipSync handshake")
+			if msg == "TestClipboard" {
+				t.Log("Successfully received Test message")
 				receivedCS = true
 			}
 			if found && receivedCS {
-				t.Log("All conditions met: device found and handshake received.")
+				t.Log("All conditions met: device found and message received.")
 				return
 			}
 		case <-ticker.C:
@@ -98,10 +98,12 @@ func TestFullNetworkWorkflow(t *testing.T) {
 				if !found {
 					found = true
 					t.Logf("Found devices: %v", globals.IPS)
+					// Send test message
+					network.SendClipboard([]byte("TestClipboard"))
 				}
 			}
 			if found && receivedCS {
-				t.Log("All conditions met: device found and handshake received.")
+				t.Log("All conditions met: device found and message received.")
 				return
 			}
 		}

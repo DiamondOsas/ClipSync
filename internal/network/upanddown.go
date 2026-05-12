@@ -3,6 +3,7 @@ package network
 import (
 	// "bufio"
 	// "fmt"
+	"encoding/binary"
 	"log"
 	"net"
 	"strconv"
@@ -18,6 +19,10 @@ func SendClipboard(data []byte) {
 		return
 	}
 	
+	payload := make([]byte, 4+len(data))
+	binary.BigEndian.PutUint32(payload[:4], uint32(len(data)))
+	copy(payload[4:], data)
+	
 	globals.IPSMu.Lock()
 	ips := make([]string, len(globals.IPS))
 	copy(ips, globals.IPS)
@@ -29,7 +34,7 @@ func SendClipboard(data []byte) {
 			log.Println("SendClipboard Resolve Error:", err)
 			continue
 		}
-		_, err = Conn.WriteToUDP(data, addr)
+		_, err = Conn.WriteToUDP(payload, addr)
 		if err != nil {
 			log.Println("SendClipboard Write Error:", err)
 		}
@@ -41,18 +46,44 @@ func RecieveClipboard() ([]byte, int){
 		log.Println("RecieveClipboard: Conn is nil. Waiting for Ready...")	
 		<-Ready
 	}
-	Buffer = make([]byte, 1024)
-	n, addr, err := Conn.ReadFromUDP(Buffer)
+	tmpBuf := make([]byte, 65535)
+	n, addr, err := Conn.ReadFromUDP(tmpBuf)
 	if err != nil{
-	log.Println("Error", err)
+		log.Println("Error", err)
+		return nil, 0
 	}
-	if slices.Equal(Buffer, []byte("---ClipSync---")){
+	
+	if n < 4 {
+		return nil, 0
+	}
+	
+	length := binary.BigEndian.Uint32(tmpBuf[:4])
+	if length > uint32(n-4) {
+		log.Println("Incomplete payload received")
+		return nil, 0
+	}
+	
+	actualData := tmpBuf[4 : 4+length]
+	
+	if slices.Equal(actualData, []byte("---ClipSync---")){
 		globals.IPSMu.Lock()
-		globals.IPS = append(globals.IPS, string(addr.IP))
+		found := false
+		for _, existingIP := range globals.IPS {
+			if existingIP == addr.IP.String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			globals.IPS = append(globals.IPS, addr.IP.String())
+		}
 		globals.IPSMu.Unlock()
 	}else{
-		log.Println("Recieved Clipboard From Addr: ", addr, "Content", string(Buffer[:n]))
-		return Buffer, n
+		// Set Buffer to actualData so other goroutines checking network.Buffer match correctly
+		Buffer = make([]byte, len(actualData))
+		copy(Buffer, actualData)
+		log.Println("Recieved Clipboard From Addr: ", addr, "Content Length", len(Buffer))
+		return Buffer, len(Buffer)
 	}
 
 	return nil, 0

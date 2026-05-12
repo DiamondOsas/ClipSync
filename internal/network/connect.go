@@ -3,6 +3,7 @@ package network
 import (
 	// "bufio"
 	"context"
+	"encoding/binary"
 	"log"
 	"net"
 	"strconv"
@@ -29,7 +30,11 @@ func Connect(ip string) {
 		log.Println(err)
 		return
 	}
-	_, err = Conn.WriteToUDP([]byte("---Clipsync---"), addr)
+	msg := []byte("---ClipSync---")
+	payload := make([]byte, 4+len(msg))
+	binary.BigEndian.PutUint32(payload[:4], uint32(len(msg)))
+	copy(payload[4:], msg)
+	_, err = Conn.WriteToUDP(payload, addr)
 	if err != nil {
 		log.Println("Connect Write error:", err)
 	}

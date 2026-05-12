@@ -49,7 +49,7 @@ func Run() bool {
 		return true
 	}
 
-	fmt.Println(asciiArt)
+	fmt.Print(asciiArt)
 
 	if !hasArgs {
 		// If started from terminal with no arguments, start the daemon and exit
@@ -88,7 +88,8 @@ func Run() bool {
 
 func printHelp() {
 	fmt.Println("Usage: clipsync [command]")
-	fmt.Println("\nCommands:")
+	fmt.Println()
+	fmt.Println("Commands:")
 	fmt.Println("  start          Start the background daemon (default if no args)")
 	fmt.Println("  list-devices   List all discovered devices")
 	fmt.Println("  connect <ip>   Manually connect to a device by IP")

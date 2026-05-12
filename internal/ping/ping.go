@@ -25,7 +25,7 @@ func PingIPS(ips []string) []string {
 		pinger.Timeout = 2 * time.Second
 		
 		// SetPrivileged allows pinger to work on most systems without root
-		// pinger.SetPrivileged(true) 
+		pinger.SetPrivileged(true) 
 
 		err = pinger.Run()
 		if err != nil {
